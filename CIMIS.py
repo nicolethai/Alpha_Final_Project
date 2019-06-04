@@ -14,6 +14,9 @@ def CIMIS_request(zip_OR_target, start_date, end_date):
     return urlopen(request)
 
 def update_lists(records,CIMIS_ET_list,CIMIS_temp_list,CIMIS_hum_list):
+    CIMIS_ET_list.clear()
+    CIMIS_temp_list.clear()
+    CIMIS_hum_list.clear()
     for x in records:
         CIMIS_ET_list.append(x['HlyEto']['Value'])
         CIMIS_temp_list.append(x['HlyAirTmp']['Value'])
