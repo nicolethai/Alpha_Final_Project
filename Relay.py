@@ -11,6 +11,7 @@ import time
 relayPin = 11    # define the relayPin
 debounceTime = 50
 GPIO.setwarnings(False)
+relayState = False
 
 def setup():
 	print ('Program is starting...')
@@ -27,6 +28,7 @@ def get_irrigation_time():
 def set_relay():
     ''' function call to initiate the relay to irrigate '''
     print ('set_relay start...')
+    global relayState
     relayState = True
     relay_t = get_irrigation_time()
     print ('relay set to irrigate for ' + str(relay_t) + ' secs')
