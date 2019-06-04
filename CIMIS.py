@@ -2,10 +2,6 @@ import json
 from urllib.request import urlopen
 from datetime import date
 #
-CIMIS_ET_list = []
-CIMIS_temp_list = []
-CIMIS_hum_list = []
-
 def today():
     return str(date.today())
 
@@ -17,7 +13,7 @@ def CIMIS_request(zip_OR_target, start_date, end_date):
     request = request_target + zip_OR_target + request_startdate + start_date + request_enddate + end_date + request_items
     return urlopen(request)
 
-def update_lists(records):
+def update_lists(records,CIMIS_ET_list,CIMIS_temp_list,CIMIS_hum_list):
     for x in records:
         CIMIS_ET_list.append(x['HlyEto']['Value'])
         CIMIS_temp_list.append(x['HlyAirTmp']['Value'])
@@ -30,12 +26,16 @@ def update_CIMIS_data(zip_OR_target, start_date, end_date):
     str_response = response.read().decode('utf-8')
     obj = json.loads(str_response)
     records = obj['Data']['Providers'][0]['Records']
-    update_lists(records)
+    CIMIS_ET_list = []
+    CIMIS_temp_list = []
+    CIMIS_hum_list = []
+    update_lists(records,CIMIS_ET_list,CIMIS_temp_list,CIMIS_hum_list)
+    return CIMIS_ET_list, CIMIS_temp_list, CIMIS_hum_list
 
 #75 is the ID of CIMIS Station at Irvine
 #today() returns a string of today's date
 
-update_CIMIS_data('75',today(),today())
+CIMIS_ET_list,CIMIS_temp_list,CIMIS_hum_list = update_CIMIS_data('75',today(),today())
 print("ET/Temp/Humidity value of", today())
 print(CIMIS_ET_list)
 print(CIMIS_temp_list)
