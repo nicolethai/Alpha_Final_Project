@@ -1,26 +1,22 @@
-#!/usr/bin/env python3
-#############################################################################
-# Filename    : DHT11.py
-# Description :	read the temperature and humidity data of DHT11
-# Author      : freenove
-# modification: 2018/08/03
-########################################################################
+#########################################################################
+# I used pytz library which is not installed on Pi in default, to install:
+# sudo easy_install pip
+# sudo pip3 install pytz
+#########################################################################
+
 import RPi.GPIO as GPIO
 import time
 import Freenove_DHT as DHT
+from CIMISapi import *
 
-from datetime import datetime
-from pytz import timezone
-
+#define GPIO pins
 DHTPin = 29    #define the pin of DHT11 - GPIO 5
 
 relayPin = 11    # define the relayPin - GPIO 17
 buttonPin = 12    # define the buttonPin - GPIO 18
 
- 
-
+#data class for local temp/hum
 class hr_data:
-    
     sum_temp = 0
     sum_hum = 0
     sum_cnt = 0
@@ -45,9 +41,10 @@ class hr_data:
         self.get_ave()
         
     def print_data(self):
-        print("Current Hour has average temp: ", self.ave_temp, " and average humidity: ", self.ave_hum)
-        
-hr_data_list = [hr_data()] * 24        
+        print("ave_humidity: ", self.ave_hum,"\t ave_temp: ", self.ave_temp,  "\n")
+
+#Global variables
+hr_data_list = [hr_data()] * 24       # a list of 24 hrs local data  
 
 def check_time_now():
     # define timezone
@@ -57,35 +54,41 @@ def check_time_now():
     cur_time = loc_dt.strftime(fmt)[11:18]
     return cur_time
 
+def read_hum_temp():
+    dht = DHT.DHT(DHTPin)   #create a DHT class object
+    cur_hr = int(check_time_now()[0:2])
+    print("Current Hour is ", cur_hr)
+    chk = dht.readDHT11()
+    while(chk is not dht.DHTLIB_OK):
+        chk = dht.readDHT11()
+    print("DHT11,OK!")
+    hr_data_list[cur_hr].add_temp_hum(dht.temperature,dht.humidity)
+    print ("This hour's ReadCnt is : %d, \t chk    : %d"%(hr_data_list[cur_hr].sum_cnt,chk))
+    print("Humidity : %.2f, \t Temperature : %.2f "%(dht.humidity,dht.temperature))
+    hr_data_list[cur_hr].print_data()
+    set_local_humidity(cur_hr, dht.humidity)
+    set_local_temp(cur_hr, dht.temperature)
+
 def setup():
 	print ('Program is starting...')
 	GPIO.setmode(GPIO.BOARD)       # Numbers GPIOs by physical location
 	GPIO.setup(relayPin, GPIO.OUT)   # Set relayPin's mode is output
 	GPIO.setup(buttonPin, GPIO.IN)
 
-
 def loop():
-    dht = DHT.DHT(DHTPin)   #create a DHT class object
-    GPIO.output(relayPin,GPIO.HIGH)
-    cur_hr = int(check_time_now()[0:2])
-    print("Current Hour is ", cur_hr)
-    sumCnt = 0              #number of reading times 
+    timeCnt = 0              #record how many seconds have passed
+    readgap = 5              #every 5 seconds read local temp/hum
+    CIMISgap = 20            #every 20 seconds request CIMIS data
     while(True):
-        chk = dht.readDHT11()     #read DHT11 and get a return value. Then determine whether data read is normal according to the return value.
-        if (chk is dht.DHTLIB_OK):      #read DHT11 and get a return value. Then determine whether data read is normal according to the return value.
-            print("DHT11,OK!")
-            sumCnt += 1         #counting number of reading times
-            print ("The sumCnt is : %d, \t chk    : %d"%(sumCnt,chk))
-            hr_data_list[cur_hr].add_temp_hum(dht.temperature,dht.humidity)
-            print("Humidity : %.2f, \t Temperature : %.2f \n"%(dht.humidity,dht.temperature))
-            hr_data_list[cur_hr].print_data()
-            time.sleep(5)  
-     
-        
+        read_hum_temp()
+        time.sleep(readgap)       
+        timeCnt += readgap
+        if(timeCnt % CIMISgap == 0):    
+            update_CIMIS_data('75',today(),today()) # request CIMIS data and update lists
+            get_irrigation_time() #calculate irrigation time
+
 def destroy():
-    
 	GPIO.output(relayPin, GPIO.LOW)     # relay off
-    
 	GPIO.cleanup()                     # Release resource
 
 if __name__ == '__main__':
