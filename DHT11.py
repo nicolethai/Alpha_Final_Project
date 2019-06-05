@@ -46,6 +46,10 @@ class hr_data:
 #Global variables
 hr_data_list = [hr_data()] * 24       # a list of 24 hrs local data  
 
+#Convert Celsius to fahrenheit
+def CtoF(value):
+    return (value * 1.8) + 32
+
 def check_time_now():
     # define timezone
     PDT = timezone('America/Los_Angeles')
@@ -62,12 +66,12 @@ def read_hum_temp():
     while(chk is not dht.DHTLIB_OK):
         chk = dht.readDHT11()
     print("DHT11,OK!")
-    hr_data_list[cur_hr].add_temp_hum(dht.temperature,dht.humidity)
+    hr_data_list[cur_hr].add_temp_hum(CtoF(dht.temperature),dht.humidity)
     print ("This hour's ReadCnt is : %d, \t chk    : %d"%(hr_data_list[cur_hr].sum_cnt,chk))
-    print("Humidity : %.2f, \t Temperature : %.2f "%(dht.humidity,dht.temperature))
+    print("Humidity : %.2f, \t Temperature : %.2f "%(dht.humidity,CtoF(dht.temperature)))
     hr_data_list[cur_hr].print_data()
-    set_local_humidity(cur_hr, dht.humidity)
-    set_local_temp(cur_hr, dht.temperature)
+    set_local_humidity(cur_hr, hr_data_list[cur_hr].ave_temp)
+    set_local_temp(cur_hr, hr_data_list[cur_hr].ave_hum)
 
 def setup():
 	print ('Program is starting...')

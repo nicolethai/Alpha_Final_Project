@@ -60,7 +60,7 @@ def calculate_time(ET):
     IE= 0.75 #irrigation efficiency
     irrigation_speed = 1020 #irrigation system delivers 1020 gallons of water per hour
     water = (ET * PF * SF * 0.62) / IE
-    time = water / irrigation_speed * 60
+    time = water / irrigation_speed * 60 * 60
     return time
 
 def set_local_humidity(i, value):
