@@ -1,12 +1,33 @@
+
+#########################################################################
+# I used pytz library which is not installed on Pi in default, to install:
+# sudo easy_install pip
+# sudo pip3 install pytz
+#########################################################################
+
+# Usage: 
+# update_CIMIS_data('75',today(),today()) 
+# call this function to update 3 global lists of CIMIS data for each hour
+# 75 is the ID of CIMIS Station at Irvine
+# today() returns a string of today's date
+
+# get_irrigation_time()
+# call this function to update a global list of irrigation for each hour
+# irrigation_time[0] will be the time needed to irrigate for the 1st hour of the day
+
+# local_temp_list and local_hum_list should be updated by DHT sensor, I used random values here to just test
+
+# Delete or comment out the code after the #Test comment before use the code
+
 import json
 from urllib.request import urlopen
 from datetime import datetime
 from pytz import timezone
 
 #Gloal variables
-CIMIS_ET_list = []
-CIMIS_temp_list = []
-CIMIS_hum_list = []
+CIMIS_ET_list = [None]*24
+CIMIS_temp_list = [None]*24
+CIMIS_hum_list = [None]*24
 
 local_ET_list = [None]*24
 local_temp_list= [60.1, 60.0, 59.7, 59.7, 59.3, 59.2, 58.4, 57.9, 58.2, 59.5, 62.3, 63.1, 63.4, 63.8, 64.1, 64.3, 64.3, 63.9, 63.0, 61.6, 61.1, 61.1, 60.7, 60.3]
@@ -71,13 +92,12 @@ def update_CIMIS_data(zip_OR_target, start_date, end_date):
     records = obj['Data']['Providers'][0]['Records']
     update_lists(records)
 
-#75 is the ID of CIMIS Station at Irvine
-#today() returns a string of today's date
-
-update_CIMIS_data('75',today(),today())
-print("ET/Temp/Humidity value of", today())
+################Test###################
+update_CIMIS_data('75','2019-06-04','2019-06-04')
+print("ET/Temp/Humidity value of", '2019-06-04')
 print(CIMIS_ET_list)
 print(CIMIS_temp_list)
 print(CIMIS_hum_list)
 get_irrigation_time()
+print("Errigation time of", today())
 print(irrigation_time)
