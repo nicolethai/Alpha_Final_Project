@@ -9,9 +9,11 @@
 # irrigation_time[0] will be the time needed to irrigate for the 1st hour of the day
 
 import json
+import requests
 from urllib.request import urlopen
 from datetime import datetime
 from pytz import timezone
+import socket
 
 #Gloal variables
 CIMIS_ET_list = [None]*24
@@ -37,8 +39,14 @@ def CIMIS_request(zip_OR_target, start_date, end_date):
     request_startdate = '&startDate='
     request_enddate = '&endDate='
     request = request_target + zip_OR_target + request_startdate + start_date + request_enddate + end_date + request_items
-    return urlopen(request)
-
+    result = None 
+    try:
+        result = urlopen(request,timeout = 6)
+    except socket.timeout:
+        print("jason is beta")
+        pass 
+    
+    return result 
 def convert_data(a):
     if (a == 'None' or a == None):
         return None
@@ -85,17 +93,25 @@ def get_irrigation_time():
     print(irrigation_time, "\n")
         
 def update_CIMIS_data(zip_OR_target, start_date, end_date):
-    response = CIMIS_request(zip_OR_target,start_date,end_date)
+    try:
+        response = CIMIS_request(zip_OR_target,start_date,end_date)
+        if response==None:
+            return
+        str_response = response.read().decode('utf-8')
+        obj = json.loads(str_response)
+        records = obj['Data']['Providers'][0]['Records']
+        update_lists(records)
+        print("Requesting data from CIMIS website...")
+        print("ET/Temp/Humidity value of", today())
+        print(CIMIS_ET_list)
+        print(CIMIS_temp_list)
+        print(CIMIS_hum_list, "\n")
+    except json.decoder.JSONDecodeError:
+        print("jason is alpha")
+        pass
+
+        #exit()
     #response = urlopen('http://et.water.ca.gov/api/data?appKey=b0d0abe6-53d6-49e5-94ad-9ffd6d43e166&targets=92619&dataItems=hly-eto&startDate=2019-06-01&endDate=2019-06-01')
-    str_response = response.read().decode('utf-8')
-    obj = json.loads(str_response)
-    records = obj['Data']['Providers'][0]['Records']
-    update_lists(records)
-    print("Requesting data from CIMIS website...")
-    print("ET/Temp/Humidity value of", today())
-    print(CIMIS_ET_list)
-    print(CIMIS_temp_list)
-    print(CIMIS_hum_list, "\n")
 
 ################Test###################
 #update_CIMIS_data('75','2019-06-04','2019-06-04')
