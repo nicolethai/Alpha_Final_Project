@@ -133,6 +133,7 @@ def loop():
             update_CIMIS_data('75','2019-06-01','2019-06-01') # request CIMIS data and update lists
             get_irrigation_time() #calculate irrigation time
             if(irrigation_time[int(check_time_now()[0:2])])!=None:
+                ''' OWEN. THIS IS WHERE IT STARTS TO CALL RELAY FUNCTION '''
                 irrigation_time[int(check_time_now()[0:2])] = 15.0
                 set_relay(int(check_time_now()[0:2]))
 
