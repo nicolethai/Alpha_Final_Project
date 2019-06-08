@@ -8,6 +8,7 @@ import RPi.GPIO as GPIO
 import time
 import Freenove_DHT as DHT
 from CIMISapi import *
+import threading
 
 #define GPIO pins
 DHTPin = 29    #define the pin of DHT11 - GPIO 5
@@ -121,7 +122,26 @@ def setup():
     GPIO.setmode(GPIO.BOARD)       # Numbers GPIOs by physical location
     GPIO.setup(relayPin, GPIO.OUT)   # Set relayPin's mode is output
     GPIO.setup(sensorPin, GPIO.IN)   # Set sensorPin's mode to input
+
+def relay_func(): #please put in the relative ports
+    started = time.time()
+    while True:
+        end = time.time()
+        print(end-started)
+        if int(end-started) == 50:   #Stops relay after 50 seconds
+            GPIO.output(   ) #stop relay
+            #print("time is up")
+            break
+        if GPIO.input(    ):   #motion detector is triggered pause relay
+            GPIO.output(    ) #stop relay
+            break
+    
+        GPIO.output(     ) #turn on relay
+
+
+time.sleep(blink_delay)
 def loop():
+    t = None
     timeCnt = 0              #record how many seconds have passed
     readgap = 1              #every 5 seconds read local temp/hum
     CIMISgap = 5            #every 20 seconds request CIMIS data
@@ -134,6 +154,9 @@ def loop():
             get_irrigation_time() #calculate irrigation time
             if(irrigation_time[int(check_time_now()[0:2])])!=None:
                 ''' OWEN. THIS IS WHERE IT STARTS TO CALL RELAY FUNCTION '''
+                t=threading.Thread(target = relay_func)
+                t.daemon = True
+                t.start()
                 irrigation_time[int(check_time_now()[0:2])] = 15.0
                 set_relay(int(check_time_now()[0:2]))
 
