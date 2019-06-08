@@ -7,6 +7,7 @@
 import RPi.GPIO as GPIO
 import time
 import Freenove_DHT as DHT
+from csv import *
 from CIMISapi import *
 
 #define GPIO pins
@@ -17,6 +18,23 @@ debounceTime = 50
 GPIO.setwarnings(False)
 relayState = False
 
+# Write out to csv file
+def cvs_out():
+    print("Writing to output.cvs file...\n ")
+    with open('Output.csv','w') as outputfile:
+        wr = writer(outputfile, dialect = 'excel')
+        wr.writerow(CIMIS_ET_list)
+        wr.writerow(CIMIS_temp_list)
+        wr.writerow(CIMIS_hum_list)
+        wr.writerow(local_ET_list)
+        wr.writerow(local_temp_list)
+        wr.writerow(local_hum_list)
+        wr.writerow(irrigation_time)
+
+def irrigate_check():
+    cur_hr = int(check_time_now()[0:2])
+    if irrigation_time[irrigated_hr+1] != None:
+        irrigated_hr+=1
 
 # Relay
 def set_relay(curr_hr):
@@ -132,10 +150,34 @@ def loop():
         if(timeCnt % CIMISgap == 0):    
             update_CIMIS_data('75','2019-06-01','2019-06-01') # request CIMIS data and update lists
             get_irrigation_time() #calculate irrigation time
+            cvs_out()
             if(irrigation_time[int(check_time_now()[0:2])])!=None:
                 ''' OWEN. THIS IS WHERE IT STARTS TO CALL RELAY FUNCTION '''
                 irrigation_time[int(check_time_now()[0:2])] = 15.0
                 set_relay(int(check_time_now()[0:2]))
+                
+# In loop1, the irrigation is turned on everytime we check if current hour of irrigation time list has a value
+# This will never happen because CIMIS data is usually updated 3 hours later than the current time
+# In loop2, I used the irrigated_hr to record which hour has been irrigated and check if next hour's data is ready
+def loop2():
+    timeCnt = 0              #record how many seconds have passed
+    readgap = 1              #every 5 seconds read local temp/hum
+    CIMISgap = 2            #every 20 seconds request CIMIS data
+    irrigated_hr = -1       #to record which hour has been irrigated
+    while(True):
+        read_hum_temp()
+        time.sleep(readgap)       
+        timeCnt += readgap
+        if(timeCnt % CIMISgap == 0):    
+            update_CIMIS_data('75','2019-06-01','2019-06-01') # request CIMIS data and update lists
+            get_irrigation_time() #calculate irrigation time
+            cvs_out()
+            if irrigated_hr < 23:
+                irrigation_time[irrigated_hr+1] = 15 # arbitrary value to test relay
+                if irrigation_time[irrigated_hr+1] != None:
+                    ''' OWEN. THIS IS WHERE IT STARTS TO CALL RELAY FUNCTION '''
+                    set_relay(irrigated_hr+1)
+                    irrigated_hr += 1
 
 def destroy():
 	GPIO.output(relayPin, GPIO.LOW)     # relay off
@@ -144,7 +186,7 @@ def destroy():
 if __name__ == '__main__':
     setup()
     try:
-        loop()
+        loop2()
     except KeyboardInterrupt:
         destroy()
         exit()  

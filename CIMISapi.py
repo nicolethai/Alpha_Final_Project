@@ -10,6 +10,7 @@
 
 import json
 import requests
+import urllib
 from urllib.request import urlopen
 from datetime import datetime
 from pytz import timezone
@@ -26,12 +27,17 @@ local_hum_list = [None]*24
 
 irrigation_time = [None]*24
 
+str_today = None
+
 def today():
     # define timezone
     PDT = timezone('America/Los_Angeles')
     fmt = '%Y-%m-%d %H:%M:%S %Z%z'
     loc_dt = datetime.now(PDT)
-    return loc_dt.strftime(fmt)[0:10]
+    global str_today
+    if str_today == None:
+        str_today = loc_dt.strftime(fmt)[0:10]
+    return str_today
 
 def CIMIS_request(zip_OR_target, start_date, end_date):
     request_target = 'http://et.water.ca.gov/api/data?appKey=b0d0abe6-53d6-49e5-94ad-9ffd6d43e166&targets='
@@ -45,6 +51,9 @@ def CIMIS_request(zip_OR_target, start_date, end_date):
     except socket.timeout:
         print("jason is beta")
         pass 
+    except urllib.error.URLError as e:
+        print(e)
+        pass
     
     return result 
 def convert_data(a):
