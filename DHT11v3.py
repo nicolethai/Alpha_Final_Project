@@ -37,11 +37,6 @@ def irrigate_check():
     if irrigation_time[irrigated_hr+1] != None:
         irrigated_hr+=1
 
-def LCD_display_data():
-            cur_hr = int(check_time_now()[0:2])
-            str_display_data = "Current hour: " + str(cur_hr) + " CIMIS hum: " + str(CIMIS_hum_list[cur_hr]) + " CIMIS temp: " + str(CIMIS_temp_list[cur_hr]) + " CIMIS ET: " + str(CIMIS_ET_list[cur_hr]) + " Local hum: " + str(local_hum_list[cur_hr]) + " Local temp: " + str(local_temp_list[cur_hr]) + " Local ET : " + str(local_ET_list[cur_hr]) 
-            LCD.scrolling(str_display_data)
-
 # Relay
 def set_relay(irrigate_period):
     ''' function call to initiate the relay to irrigate. param irrigate_period is time relay needs to irrigate for '''
@@ -51,7 +46,7 @@ def set_relay(irrigate_period):
     relay_t = irrigate_period 
     print ('relay set to irrigate for ' + str(relay_t) + ' secs')
     start_t = time.time()
-    LCD.display("Irrigation START")
+
     while True:
 	# check end of watering interval
         if time.time()-start_t >= relay_t:
@@ -63,43 +58,6 @@ def set_relay(irrigate_period):
         while GPIO.input(sensorPin) == GPIO.HIGH:
             '''need to output to LCD'''
             #print ('Motion detected... pause relay')
-            LCD.display("Irrigation PAUSE")
-            if time.time()-pir_t >= 60.0:
-                print ('\t1 min max over')
-                relayState = True
-                break
-            relayState = False
-            GPIO.output(relayPin, relayState)
-
-        relayState = True
-        GPIO.output(relayPin, relayState)
-        time.sleep(1.0)
-        print(time.time()-start_t)
-    print ('end relay')
-    LCD.display("Irrigation DONE")
-    GPIO.output(relayPin, relayState)
-
-# Relay
-def set_relay2(curr_hr):
-    ''' function call to initiate the relay to irrigate. param curr_hr takes the hour relay needs to irrigate for '''
-    print ('set_relay start...')
-    global relayState
-    relayState = True
-    relay_t = irrigation_time[curr_hr]
-    print ('relay set to irrigate for ' + str(relay_t) + ' secs')
-    start_t = time.time()
-
-    while True:
-	# check end of watering interval
-        if time.time()-start_t >= relay_t:
-            relayState = False
-            break
-
-    	# check for motion sensor
-        pir_t = time.time()
-        while GPIO.input(sensorPin) == GPIO.HIGH:
-            '''need to output to LCD'''
-            print ('Motion detected... pause relay')
             if time.time()-pir_t >= 60.0:
                 print ('\t1 min max over')
                 relayState = True
@@ -150,10 +108,19 @@ hr_data_list = [hr_data()] * 24       # a list of 24 hrs local data
 def CtoF(value):
     return (value * 1.8) + 32
 
+def check_time_now():
+    # define timezone
+    PDT = timezone('America/Los_Angeles')
+    fmt = '%Y-%m-%d %H:%M:%S %Z%z'
+    loc_dt = datetime.now(PDT)
+    cur_time = loc_dt.strftime(fmt)[11:18]
+    return cur_time
+
 def read_hum_temp():
     dht = DHT.DHT(DHTPin)   #create a DHT class object
     cur_hr = int(check_time_now()[0:2])
     print("Current Hour is ", cur_hr)
+    
     chk = dht.readDHT11()
     while(chk is not dht.DHTLIB_OK):
         chk = dht.readDHT11()
@@ -167,13 +134,32 @@ def read_hum_temp():
     hr_data_list[cur_hr].print_data()
     set_local_humidity(cur_hr, hr_data_list[cur_hr].ave_temp)
     set_local_temp(cur_hr, hr_data_list[cur_hr].ave_hum)
-    
+    dht.humidity = 0
 def setup():
     print ('Program is starting...')
     GPIO.setmode(GPIO.BOARD)       # Numbers GPIOs by physical location
-    GPIO.setup(relayPin, GPIO.OUT, initial = False)   # Set relayPin's mode is output
+    GPIO.setup(relayPin, GPIO.OUT)   # Set relayPin's mode is output
     GPIO.setup(sensorPin, GPIO.IN)   # Set sensorPin's mode to input
+
+
+def relay_func(): #please put in the relative ports
+    print ("relay_func")
+    started = time.time()
+    while True:
+        end = time.time()
+        print(end-started)
+        if int(end-started) == 50:   #Stops relay after 50 seconds
+            GPIO.output(relayPin, False) #stop relay
+            #print("time is up")
+            break
+        if GPIO.input(sensorPin):   #motion detector is triggered pause relay
+            print ("Motion detected")
+            GPIO.output(relayPin, False) #stop relay
+            break
     
+        GPIO.output(relayPin, True) #turn on relay
+    print ("end thread")
+
 def loop():
     timeCnt = 0              #record how many seconds have passed
     readgap = 1              #every 5 seconds read local temp/hum
@@ -190,19 +176,7 @@ def loop():
                 ''' OWEN. THIS IS WHERE IT STARTS TO CALL RELAY FUNCTION '''
                 irrigation_time[int(check_time_now()[0:2])] = 15.0
                 set_relay(int(check_time_now()[0:2]))
-
-def rolling_display(x):
-    m = 0
-    n = 15
-    if len(x)<=16:
-        LCD.display(x)
-    else:
-        for i in range(len(x)-16):
-            LCD.display(x[m:n])
-            m+=1
-            n+=1
-            sleep(1)
-
+                
 # In loop1, the irrigation is turned on everytime we check if current hour of irrigation time list has a value
 # This will never happen because CIMIS data is usually updated 3 hours later than the current time
 # In loop2, I used the irrigated_hr to record which hour has been irrigated and check if next hour's data is ready
@@ -211,7 +185,6 @@ def loop2():
     readgap = 1              #every 5 seconds read local temp/hum
     CIMISgap = 2            #every 20 seconds request CIMIS data
     irrigated_hr = -1       #to record which hour has been irrigated
-    set_start_hr()
     while(True):
         read_hum_temp()
         time.sleep(readgap)       
@@ -220,11 +193,9 @@ def loop2():
             update_CIMIS_data('75','2019-06-01','2019-06-01') # request CIMIS data and update lists
             get_irrigation_time() #calculate irrigation time
             cvs_out()
+            irrigation_time[irrigated_hr+1] = 15
             if irrigated_hr < 23:
-                irrigation_time[irrigated_hr+1] = 15 # arbitrary value to test relay
                 if irrigation_time[irrigated_hr+1] != None:
-                    ''' OWEN. THIS IS WHERE IT STARTS TO CALL RELAY FUNCTION '''
-                    LCD_display_data()
                     t=threading.Thread(target = set_relay, args=[irrigation_time[irrigated_hr+1]])
                     t.daemon = True
                     t.start()

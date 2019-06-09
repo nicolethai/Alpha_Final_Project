@@ -14,6 +14,7 @@ import urllib
 from urllib.request import urlopen
 from datetime import datetime
 from pytz import timezone
+import LCD
 import socket
 
 #Gloal variables
@@ -26,8 +27,22 @@ local_temp_list= [None]*24
 local_hum_list = [None]*24
 
 irrigation_time = [None]*24
-
+water_amount = [None]*24
 str_today = None
+start_hr = None 
+
+def check_time_now():
+    # define timezone
+    PDT = timezone('America/Los_Angeles')
+    fmt = '%Y-%m-%d %H:%M:%S %Z%z'
+    loc_dt = datetime.now(PDT)
+    cur_time = loc_dt.strftime(fmt)[11:18]
+    return cur_time
+
+def set_start_hr():
+    global start_hr
+    start_hr = int(check_time_now()[0:2])
+    print("Program starts at hour: ", start_hr)
 
 def today():
     # define timezone
@@ -37,6 +52,7 @@ def today():
     global str_today
     if str_today == None:
         str_today = loc_dt.strftime(fmt)[0:10]
+    print(str_today)
     return str_today
 
 def CIMIS_request(zip_OR_target, start_date, end_date):
@@ -71,6 +87,13 @@ def update_lists(records):
         CIMIS_temp_list.append(convert_data(x['HlyAirTmp']['Value']))
         CIMIS_hum_list.append(convert_data(x['HlyRelHum']['Value']))
 
+def update_lists2(records):
+    for i in range(24):
+        if(CIMIS_ET_list[i] is None or i < start_hr):
+            CIMIS_ET_list[i] = (convert_data(records[i]['HlyEto']['Value']))
+            CIMIS_temp_list[i] = (convert_data(records[i]['HlyAirTmp']['Value']))
+            CIMIS_hum_list[i] = (convert_data(records[i]['HlyRelHum']['Value']))
+
 def calculate_time(ET):
     PF = 1 #plant factor
     SF = 200 #area to be irrigated
@@ -79,6 +102,14 @@ def calculate_time(ET):
     water = (ET * PF * SF * 0.62) / IE
     time = water / irrigation_speed * 60 * 60
     return time
+
+def calculate_water(ET):
+    PF = 1 #plant factor
+    SF = 200 #area to be irrigated
+    IE= 0.75 #irrigation efficiency
+    irrigation_speed = 1020 #irrigation system delivers 1020 gallons of water per hour
+    water = (ET * PF * SF * 0.62) / IE
+    return water
 
 def set_local_humidity(i, value):
     local_hum_list[i] = value
@@ -98,6 +129,7 @@ def get_irrigation_time():
     for i in range(len(local_ET_list)):
         if (local_ET_list[i] != None):
             irrigation_time[i] = calculate_time(local_ET_list[i])
+            water_amount[i] = calculate_water(local_ET_list[i])
     print("Errigation time of", today())
     print(irrigation_time, "\n")
         
@@ -109,7 +141,7 @@ def update_CIMIS_data(zip_OR_target, start_date, end_date):
         str_response = response.read().decode('utf-8')
         obj = json.loads(str_response)
         records = obj['Data']['Providers'][0]['Records']
-        update_lists(records)
+        update_lists2(records)
         print("Requesting data from CIMIS website...")
         print("ET/Temp/Humidity value of", today())
         print(CIMIS_ET_list)
