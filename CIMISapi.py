@@ -28,6 +28,8 @@ local_hum_list = [None]*24
 
 irrigation_time = [None]*24
 water_amount = [None]*24
+CIMIS_water_amt = [None]*24
+
 str_today = None
 start_hr = None 
 
@@ -42,7 +44,7 @@ def check_time_now():
 def set_start_hr():
     global start_hr
     start_hr = int(check_time_now()[0:2])
-    print("Program starts at hour: ", start_hr)
+    print("Program starts at hour: ", start_hr, "\n")
 
 def today():
     # define timezone
@@ -52,7 +54,6 @@ def today():
     global str_today
     if str_today == None:
         str_today = loc_dt.strftime(fmt)[0:10]
-    print(str_today)
     return str_today
 
 def CIMIS_request(zip_OR_target, start_date, end_date):
@@ -64,11 +65,11 @@ def CIMIS_request(zip_OR_target, start_date, end_date):
     result = None 
     try:
         result = urlopen(request,timeout = 6)
-    except socket.timeout:
-        print("jason is beta")
+    except socket.timeout as e:
+        print(e, "\n")
         pass 
     except urllib.error.URLError as e:
-        print(e)
+        print(e, "\n")
         pass
     
     return result 
@@ -79,15 +80,6 @@ def convert_data(a):
         return float(a)
 
 def update_lists(records):
-    CIMIS_ET_list.clear()
-    CIMIS_temp_list.clear()
-    CIMIS_hum_list.clear()
-    for x in records:
-        CIMIS_ET_list.append(convert_data(x['HlyEto']['Value']))
-        CIMIS_temp_list.append(convert_data(x['HlyAirTmp']['Value']))
-        CIMIS_hum_list.append(convert_data(x['HlyRelHum']['Value']))
-
-def update_lists2(records):
     for i in range(24):
         if(CIMIS_ET_list[i] is None or i < start_hr):
             CIMIS_ET_list[i] = (convert_data(records[i]['HlyEto']['Value']))
@@ -118,7 +110,7 @@ def set_local_temp(i, value):
     local_temp_list[i] = value
 
 def get_irrigation_time():
-    print("Average hum and temp average per hour of: ", today())
+    print("Average hum and temp average per hour of ", today())
     print(local_hum_list)
     print(local_temp_list)
     for i in range(len(CIMIS_ET_list)):
@@ -130,8 +122,13 @@ def get_irrigation_time():
         if (local_ET_list[i] != None):
             irrigation_time[i] = calculate_time(local_ET_list[i])
             water_amount[i] = calculate_water(local_ET_list[i])
-    print("Errigation time of", today())
+            CIMIS_water_amt[i] = calculate_water(CIMIS_ET_list[i])
+    print("\nIrrigation time of", today())
     print(irrigation_time, "\n")
+    print("Water amount to irrigate based on CIMIS data of", today())
+    print(CIMIS_water_amt, "\n")
+    print("Water amount to irrigate based on modified local data of", today())
+    print(water_amount, "\n")
         
 def update_CIMIS_data(zip_OR_target, start_date, end_date):
     try:
@@ -141,14 +138,15 @@ def update_CIMIS_data(zip_OR_target, start_date, end_date):
         str_response = response.read().decode('utf-8')
         obj = json.loads(str_response)
         records = obj['Data']['Providers'][0]['Records']
-        update_lists2(records)
+        update_lists(records)
         print("Requesting data from CIMIS website...")
         print("ET/Temp/Humidity value of", today())
         print(CIMIS_ET_list)
         print(CIMIS_temp_list)
         print(CIMIS_hum_list, "\n")
-    except json.decoder.JSONDecodeError:
-        print("jason is alpha")
+    except json.decoder.JSONDecodeError as e:
+        print("CIMIS data json decode error:")
+        print(e, "\n")
         pass
 
         #exit()

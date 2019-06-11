@@ -19,6 +19,16 @@ debounceTime = 50
 GPIO.setwarnings(False)
 relayState = False
 
+def exit_if_24hr():
+    cur_hour = int(check_time_now()[0:2])
+    global start_hr
+    cnt = 0
+    if cur_hour != start_hr:
+        cnt += 1
+    if cnt == 1 and cur_hour == start_hr:
+        print("24 hours passed, job done, quiting...")
+        exit()
+
 # Write out to csv file
 def cvs_out():
     print("Writing to output.cvs file...\n ")
@@ -38,8 +48,19 @@ def irrigate_check():
         irrigated_hr+=1
 
 def LCD_display_data():
+            print("Displaying data on LCD...")
             cur_hr = int(check_time_now()[0:2])
-            str_display_data = "Current hour: " + str(cur_hr) + " CIMIS hum: " + str(CIMIS_hum_list[cur_hr]) + " CIMIS temp: " + str(CIMIS_temp_list[cur_hr]) + " CIMIS ET: " + str(CIMIS_ET_list[cur_hr]) + " Local hum: " + str(local_hum_list[cur_hr]) + " Local temp: " + str(local_temp_list[cur_hr]) + " Local ET : " + str(local_ET_list[cur_hr]) 
+            str_display_data = None
+            if (CIMIS_water_amt[cur_hr]== None or water_amount[cur_hr] == None):
+                saved_amt = None
+            else:
+                saved_amt = CIMIS_water_amt[cur_hr]-water_amount[cur_hr]
+            if saved_amt == None:
+                str_display_data = "Current hour: " + str(cur_hr) + " CIMIS hum: " + str(CIMIS_hum_list[cur_hr]) + " CIMIS temp: " + str(CIMIS_temp_list[cur_hr]) + " CIMIS ET: " + str(CIMIS_ET_list[cur_hr]) + " Local hum: " + str(local_hum_list[cur_hr])[0:4] + " Local temp: " + str(local_temp_list[cur_hr])[0:4] + " Local ET : " + str(local_ET_list[cur_hr])[0:4] + " Water data not ready! "
+            elif saved_amt >= 0:
+                str_display_data = "Current hour: " + str(cur_hr) + " CIMIS hum: " + str(CIMIS_hum_list[cur_hr]) + " CIMIS temp: " + str(CIMIS_temp_list[cur_hr]) + " CIMIS ET: " + str(CIMIS_ET_list[cur_hr]) + " Local hum: " + str(local_hum_list[cur_hr])[0:4] + " Local temp: " + str(local_temp_list[cur_hr])[0:4] + " Local ET : " + str(local_ET_list[cur_hr])[0:4] + " Water saved: " + str(saved_amt)
+            else:
+                str_display_data = "Current hour: " + str(cur_hr) + " CIMIS hum: " + str(CIMIS_hum_list[cur_hr]) + " CIMIS temp: " + str(CIMIS_temp_list[cur_hr]) + " CIMIS ET: " + str(CIMIS_ET_list[cur_hr]) + " Local hum: " + str(local_hum_list[cur_hr])[0:4] + " Local temp: " + str(local_temp_list[cur_hr])[0:4] + " Local ET : " + str(local_ET_list[cur_hr])[0:4] + " Water wasted: " + str(saved_amt)
             LCD.scrolling(str_display_data)
 
 # Relay
@@ -165,8 +186,8 @@ def read_hum_temp():
     print ("This hour's ReadCnt is : %d, \t chk    : %d"%(hr_data_list[cur_hr].sum_cnt,chk))
     print("Humidity : %.2f, \t Temperature : %.2f "%(dht.humidity,CtoF(dht.temperature)))
     hr_data_list[cur_hr].print_data()
-    set_local_humidity(cur_hr, hr_data_list[cur_hr].ave_temp)
-    set_local_temp(cur_hr, hr_data_list[cur_hr].ave_hum)
+    set_local_humidity(cur_hr, hr_data_list[cur_hr].ave_hum)
+    set_local_temp(cur_hr, hr_data_list[cur_hr].ave_temp)
     
 def setup():
     print ('Program is starting...')
@@ -191,28 +212,17 @@ def loop():
                 irrigation_time[int(check_time_now()[0:2])] = 15.0
                 set_relay(int(check_time_now()[0:2]))
 
-def rolling_display(x):
-    m = 0
-    n = 15
-    if len(x)<=16:
-        LCD.display(x)
-    else:
-        for i in range(len(x)-16):
-            LCD.display(x[m:n])
-            m+=1
-            n+=1
-            sleep(1)
-
 # In loop1, the irrigation is turned on everytime we check if current hour of irrigation time list has a value
 # This will never happen because CIMIS data is usually updated 3 hours later than the current time
 # In loop2, I used the irrigated_hr to record which hour has been irrigated and check if next hour's data is ready
 def loop2():
     timeCnt = 0              #record how many seconds have passed
     readgap = 1              #every 5 seconds read local temp/hum
-    CIMISgap = 2            #every 20 seconds request CIMIS data
+    CIMISgap = 5          #every 20 seconds request CIMIS data
     irrigated_hr = -1       #to record which hour has been irrigated
     set_start_hr()
     while(True):
+        exit_if_24hr()
         read_hum_temp()
         time.sleep(readgap)       
         timeCnt += readgap
