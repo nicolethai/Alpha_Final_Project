@@ -33,12 +33,12 @@ def get_irrigation_time(ET0_local):
     gal_per_day = gal_per_day_sample
     return (gal_per_day/water_debit)*3600
 
-def set_relay(curr_hr):
+def set_relay(irrigate_period):
     ''' function call to initiate the relay to irrigate. param curr_hr takes the hour relay needs to irrigate for '''
     print ('set_relay start...')
     global relayState
     relayState = True
-    relay_t = irrigate_time[curr_hr]
+    relay_t = irrigate_period
     print ('relay set to irrigate for ' + str(relay_t) + ' secs')
     start_t = time.time()
     pause_time = 0 #pause time 
@@ -65,12 +65,12 @@ def set_relay(curr_hr):
             paused = 1 #paused set to true
             GPIO.output(relayPin, relayState)
 
-        if(paused == 1){ #pause loop exited, add pause time back
+        if(paused == 1): #pause loop exited, add pause time back
             pause_time = time.time() - pir_t #when exiting the pause loop, minus the start time from current to get the paused time
             relay_t += pause_time # add the paused time back to irrigation time
             pause_time = 0
             paused = 0 #set flag to false
-        }
+        
         relayState = True
         GPIO.output(relayPin, relayState)
         time.sleep(1.0)
