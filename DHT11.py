@@ -34,7 +34,7 @@ def get_irrigation_time(ET0_local):
     return (gal_per_day/water_debit)*3600
 
 def set_relay(irrigate_period):
-    ''' function call to initiate the relay to irrigate. param curr_hr takes the hour relay needs to irrigate for '''
+    ''' function call to initiate the relay to irrigate. param irrigate_period takes the time relay needs to irrigate for '''
     print ('set_relay start...')
     global relayState
     relayState = True
